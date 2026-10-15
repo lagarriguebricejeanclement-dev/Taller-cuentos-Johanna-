@@ -1,10 +1,11 @@
 /* Offline support: show the saved copy at once, fetch the new version in the background.
+   Network requests skip the browser's 10-minute HTTP cache so a new version is really fetched.
    The new version is used on the next launch. Change VERSION to force a full refresh. */
-const VERSION = "cuento-v6";
+const VERSION = "cuento-v7";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
@@ -20,7 +21,7 @@ self.addEventListener("fetch", e => {
   e.respondWith(
     caches.open(VERSION).then(cache =>
       cache.match(e.request, { ignoreSearch: true }).then(saved => {
-        const fresh = fetch(e.request)
+        const fresh = fetch(e.request, { cache: "no-cache" })
           .then(res => { if (res && res.ok) cache.put(e.request, res.clone()); return res; })
           .catch(() => saved);
         if (saved) { e.waitUntil(fresh); return saved; }
